@@ -1,0 +1,67 @@
+language: 'typescript'
+layer: 'application'
+stack: 'frontend'
+tags:
+  - 'docs'
+  - 'docusaurus'
+
+project:
+  title: 'GilmanLab docs site'
+  description: 'Docusaurus documentation site for the GilmanLab homelab.'
+  owner: 'GilmanLab'
+  maintainers:
+    - 'josh'
+
+toolchains:
+  default: 'node'
+
+fileGroups:
+  configs:
+    - 'docusaurus.config.ts'
+    - 'tsconfig.json'
+    - 'package.json'
+    - 'package-lock.json'
+  sources:
+    - 'docs/**/*'
+    - 'src/**/*'
+    - 'static/**/*'
+
+tasks:
+  start:
+    command: 'npm run start'
+    toolchains: ['javascript', 'node', 'npm']
+    inputs:
+      - '@group(configs)'
+      - '@group(sources)'
+    options:
+      cache: false
+
+  build:
+    command: 'npm run build'
+    toolchains: ['javascript', 'node', 'npm']
+    inputs:
+      - '@group(configs)'
+      - '@group(sources)'
+    outputs:
+      - 'build/**/*'
+    options:
+      runInCI: true
+
+  typecheck:
+    command: 'npm run typecheck'
+    toolchains: ['javascript', 'node', 'npm']
+    inputs:
+      - '@group(configs)'
+      - '@group(sources)'
+    options:
+      runInCI: true
+
+  check:
+    deps:
+      - 'build'
+      - 'typecheck'
+    command: 'true'
+    toolchains: 'system'
+    inputs: []
+    options:
+      cache: false

@@ -1,0 +1,9 @@
+javascript:
+  packageManager: 'npm'
+  inferTasksFromScripts: false
+
+npm: {}
+
+node:
+  version: '22.22.2'
+  syncVersionManagerConfig: 'nvm'

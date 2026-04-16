@@ -1,0 +1,12 @@
+layer: 'scaffolding'
+
+project:
+  title: 'GilmanLab Docs'
+  description: 'Documentation site and repository-level tooling for GilmanLab.'
+  owner: 'GilmanLab'
+  maintainers:
+    - 'josh'
+
+workspace:
+  inheritedTasks:
+    include: []
