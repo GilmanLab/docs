@@ -25,7 +25,7 @@ At a high level:
 - AWX and/or TerraKube handle node-level post-provisioning work.
 - CAPI creates downstream Talos-based clusters as Proxmox VMs through the clustered Proxmox API surface.
 - The `DS923+` provides shared storage to the Proxmox layer.
-- The `VP6630` remains the lab router and network boundary to the home network.
+- The `VP6630` remains the lab router, DNS entrypoint, and network boundary to the home network.
 
 ## Design Intent
 
@@ -100,7 +100,7 @@ The `DS923+` is also the primary durable backup boundary in the system. Platform
 The physical network roles remain:
 
 - `CCR2004`: home router
-- `VP6630`: lab router and DMZ boundary to the home network
+- `VP6630`: lab router, DNS entrypoint, and DMZ boundary to the home network
 - `CRS309-1G-8S+IN`: lab switch
 - `TL-SG105`: dedicated Intel AMT switch for the `MS-02 Ultra` management links
 
@@ -120,6 +120,58 @@ The baseline network model is intentionally smaller than the previous lab design
 - optional storage / replication network later
 
 The provisioning network exists because Tinkerbell's DHCP and PXE flow requires Layer 2 access or DHCP relay. The current design assumes a dedicated provisioning segment rather than folding PXE traffic into the general workload path.
+
+### DNS and Naming
+
+The lab uses `lab.gilman.io` as its internal naming root rather than a private-only top-level domain.
+
+This keeps internal naming under a real domain the lab controls while still allowing private DNS views, selective public exposure later, and a clean future path for public certificates on intentionally exposed endpoints.
+
+The current intended DNS design is:
+
+- `VyOS` remains the client-facing resolver for the lab networks.
+- A `PowerDNS Authoritative` service runs as a container on the `VP6630`.
+- `VyOS` forwards the lab's internal zones to that local authoritative service.
+- Internal names are private by default; public DNS is reserved for explicitly exposed entrypoints.
+- Internal certificates are expected to use a private CA by default; public CA issuance is reserved for endpoints that benefit from public trust.
+
+Running the authoritative DNS service on the router boundary instead of inside the platform cluster avoids a bootstrap dependency where the platform control plane would need to be healthy before the lab can resolve the names used to reach it.
+
+The namespace is intentionally split by ownership boundary instead of using one flat dynamic zone:
+
+| Zone | Writers | Purpose |
+| --- | --- | --- |
+| `lab.gilman.io` | manual or GitOps-managed only | Parent zone, delegations, and a small set of static anchor records |
+| `mgmt.lab.gilman.io` | manual or GitOps-managed only | Stable management and platform service names |
+| `dhcp.lab.gilman.io` | `VyOS` DHCP via `RFC2136` | Dynamic lease-driven hostnames |
+| `<cluster>.k8s.lab.gilman.io` | `ExternalDNS` via `RFC2136` | Cluster-scoped workload and ingress names |
+
+This design keeps the management namespace stable while still allowing dynamic DNS for both DHCP clients and Kubernetes workloads. It also keeps update rights narrow: `VyOS` DHCP cannot mutate management records, and each Kubernetes cluster can be constrained to only its own delegated subzone.
+
+### Internal PKI and Trust
+
+The lab's internal PKI is designed around the same bootstrap constraint as internal DNS: the trust anchor for internal services cannot depend on the platform cluster being healthy before it can issue or rotate certificates.
+
+The current intended PKI design is:
+
+- The internal root CA key lives in `AWS KMS`.
+- The root CA is treated as operationally offline: no always-on lab service has standing permission to use it for routine issuance.
+- A `Smallstep step-ca` service runs as a container on the `VP6630` as the online intermediate CA.
+- Internal ACME is provided by that `step-ca` instance for automated certificate issuance and renewal.
+- `Vault` remains the expected long-term home for most secret management inside the platform cluster, but it is not the bootstrap owner of the internal CA hierarchy.
+
+This keeps naming and trust in the same edge-adjacent failure domain without forcing the platform cluster to come up first. If the platform cluster is down, the lab can still resolve internal names and issue or renew the certificates needed to restore that control plane.
+
+The intended trust boundary is deliberately split:
+
+| Component | Role | Notes |
+| --- | --- | --- |
+| Root CA | trust anchor | Stored in `AWS KMS`; used only for intermediate issuance and rotation |
+| `step-ca` on `VP6630` | online issuing intermediate | Handles day-to-day certificate issuance for internal services |
+| ACME clients | automated consumers | Used by `cert-manager` and other internal services that can rotate through ACME |
+| `Vault` | secret management consumer | May issue or store service-specific material later, but does not own bootstrap PKI |
+
+This design accepts that routing, internal DNS, and the online intermediate CA share the `VP6630` failure domain. That is an intentional trade for the homelab: a single edge host keeps the bootstrap path simple, while the root CA remains outside that host's routine operating privileges.
 
 ## Control Flow
 
