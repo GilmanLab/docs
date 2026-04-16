@@ -30,12 +30,9 @@ It is intentionally descriptive rather than prescriptive:
   - Transit address: `10.0.0.2/30`
   - Hostname: `gateway`
   - VLAN gateways:
-    - `10.10.10.1` (`LAB_MGMT`)
+    - `10.10.10.1` (`LAB_MGMT`, management + platform)
     - `10.10.20.1` (`LAB_PROV`)
-    - `10.10.30.1` (`LAB_PLATFORM`)
-    - `10.10.40.1` (`LAB_CLUSTER`)
-    - `10.10.50.1` (`LAB_SERVICE`)
-    - `10.10.60.1` (`LAB_STORAGE`)
+    - `10.10.40.1` (`LAB_WORKLOAD`)
     - `10.10.70.1` (`LAB_OOB`)
 
 ### Minisforum UM760
@@ -49,9 +46,9 @@ It is intentionally descriptive rather than prescriptive:
   - NVMe install target noted as `>= 256GB`
   - Observed NIC MAC in Talos config: `38:05:25:34:25:d0`
 - Network details found in repo:
-  - Node address: `10.10.30.10/24`
+  - Node address: `10.10.10.10/24`
   - API endpoint references:
-    - `https://10.10.30.10:6443`
+    - `https://10.10.10.10:6443`
     - `https://platform.lab.local:6443`
 
 ### Minisforum MS-02 Ultra
