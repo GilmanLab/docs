@@ -53,6 +53,7 @@ This cluster is intended to own the following responsibilities:
 - `Argo CD`: GitOps for the platform cluster itself, and potentially for downstream cluster registration and sync
 - `AWX`: Ansible orchestration for infrastructure tasks that are still better handled through playbooks
 - `TerraKube`: optional Terraform-based automation for future non-node-bootstrap workflows
+- network-device backup services for RouterOS configuration history and encrypted recovery artifacts
 
 This machine is not being used as a general-purpose compute node. Its purpose is to act as the lab control plane.
 
@@ -172,6 +173,24 @@ The intended trust boundary is deliberately split:
 | `Vault` | secret management consumer | May issue or store service-specific material later, but does not own bootstrap PKI |
 
 This design accepts that routing, internal DNS, and the online intermediate CA share the `VP6630` failure domain. That is an intentional trade for the homelab: a single edge host keeps the bootstrap path simple, while the root CA remains outside that host's routine operating privileges.
+
+### Network Device Backups
+
+Network-device backup collection belongs in the platform cluster once that
+cluster is online.
+
+The first target devices are the MikroTik `CRS309` lab switch and `CCR2004` home
+router. The durable flow should use `Oxidized` for RouterOS collection and a
+small SOPS-aware writer that commits only encrypted backup artifacts into the
+private `secrets` repo.
+
+This is intentionally not a `VP6630` container responsibility. RouterOS backups
+are operational recovery support, not a bootstrap dependency like DNS or PKI.
+Keeping the backup stack in the platform cluster keeps the router focused on
+routing, internal DNS, and certificate issuance while the platform cluster owns
+automation and Git-backed operational services.
+
+The design is documented in [Network device backups](./network-device-backups.md).
 
 ## Control Flow
 
@@ -295,6 +314,7 @@ At minimum, that includes:
 - platform cluster applications
 - platform cluster infrastructure controllers
 - provisioning stack configuration
+- platform-owned operational services such as network-device backups
 
 The current design keeps `Argo CD` scoped to the platform cluster itself.
 
@@ -340,4 +360,4 @@ As the design firms up, the next useful additions to this document are likely:
 - storage model
 - network model
 - downstream cluster lifecycle
-- backup and disaster recovery boundaries
+- restore drills and disaster recovery procedures
