@@ -12,5 +12,7 @@ Start with:
 
 - [Architecture overview](./architecture.md)
 - [Hardware reference](./hardware.md)
+- [Network device backups](./network-device-backups.md)
+- [RouterOS ACME certificates](./routeros-acme.md)
 
 More runbooks, decisions, and operating guides will live here as the lab grows.
