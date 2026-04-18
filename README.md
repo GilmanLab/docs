@@ -31,6 +31,8 @@ moon run docs:start
 
 - [`docs/docs/index.md`](docs/docs/index.md): docs landing page
 - [`docs/docs/architecture.md`](docs/docs/architecture.md): architecture overview
+- [`docs/docs/designs/`](docs/docs/designs): proposed design documents that are
+  not yet part of the settled architecture baseline
 - [`docs/docs/hardware.md`](docs/docs/hardware.md): hardware inventory
 - [`docs/docs/network-device-backups.md`](docs/docs/network-device-backups.md): RouterOS backup design for the future platform cluster
 

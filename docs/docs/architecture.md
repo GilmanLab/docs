@@ -325,6 +325,11 @@ This means:
 - downstream clusters are expected to manage their own services independently
 - whether a downstream cluster uses `Argo CD` or some other delivery model is left to that cluster's own design
 
+The intended future multi-cluster delivery model is being tracked separately in
+[Multi-Cluster GitOps Model](./designs/gitops-multi-cluster.md). Until that
+design is implemented, this architecture overview remains intentionally
+conservative about downstream-cluster GitOps behavior.
+
 ## Why This Layout
 
 This layout separates concerns in a way that matches the intended operating model:

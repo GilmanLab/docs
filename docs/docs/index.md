@@ -11,6 +11,7 @@ This site is the primary documentation surface for the GilmanLab homelab.
 Start with:
 
 - [Architecture overview](./architecture.md)
+- [Design documents](./designs/)
 - [Hardware reference](./hardware.md)
 - [Network device backups](./network-device-backups.md)
 - [RouterOS ACME certificates](./routeros-acme.md)
