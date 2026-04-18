@@ -391,6 +391,10 @@ This applies equally to downstream clusters. A downstream cluster whose Velero b
 ### Off-Site
 
 A single PBS datastore on the NAS leaves the lab exposed to NAS-level failure. Off-site replication is a planned addition rather than a day-one requirement. PBS supports pull-mode sync between PBS instances; the likely path is a second PBS target either on a different physical location or backed by S3-compatible object storage. Velero's object store can be mirrored or cross-region-replicated through whatever backend is chosen. The exact off-site design is deferred until the primary PBS is in place and the NAS-level failure scenarios have been characterized.
+The intended future multi-cluster delivery model is being tracked separately in
+[Multi-Cluster GitOps Model](./designs/gitops-multi-cluster.md). Until that
+design is implemented, this architecture overview remains intentionally
+conservative about downstream-cluster GitOps behavior.
 
 ## Why This Layout
 
@@ -427,3 +431,4 @@ As the design firms up, the next useful additions to this document are likely:
 - storage model
 - network model
 - downstream cluster lifecycle
+- restore drills and disaster recovery procedures
