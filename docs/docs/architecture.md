@@ -325,6 +325,73 @@ This means:
 - downstream clusters are expected to manage their own services independently
 - whether a downstream cluster uses `Argo CD` or some other delivery model is left to that cluster's own design
 
+## Disaster Recovery
+
+The lab's recovery model is rebuild-first. Most components are reconstructed from source-controlled configuration, GitOps state, and automation rather than restored from a point-in-time backup. This section defines the backup and restore substrate for the state that cannot be reasonably rebuilt that way.
+
+### Scope
+
+The lab accumulates irreducible state in four tiers:
+
+- **Proxmox VMs** — downstream cluster nodes, utility VMs, and any workload VMs whose guest state cannot be cheaply reconstructed
+- **Platform and downstream Kubernetes clusters** — cluster objects (manifests, CRDs), etcd, and persistent volumes holding workload data
+- **Arbitrary Linux hosts and one-off container volumes** — the `VP6630` VyOS router's container volumes (`pdns-auth` LMDB, `step-ca` BadgerDB, Tailscale machine key), Talos etcd snapshots pushed out of cluster, and similar filesystem-shaped state that does not live inside a Kubernetes cluster
+- **RouterOS configuration history** — covered separately in [Network Device Backups](./network-device-backups.md). Its requirement is reviewable plaintext change history rather than block or filesystem recovery, so it uses a different artifact model
+
+### Tooling
+
+The first three tiers are covered by two complementary tools:
+
+| Tool | Scope |
+| --- | --- |
+| `Proxmox Backup Server` (PBS) | Proxmox VMs (native block-level, dedup, dirty-bitmap incrementals); arbitrary Linux hosts and container volumes via the standalone `proxmox-backup-client` |
+| `Velero` | Kubernetes-native backup for the platform cluster and all CAPI-provisioned downstream clusters: manifests, CRDs, etcd, and persistent volumes via CSI snapshots or file-system backup |
+
+Two tools rather than one is a deliberate choice. PBS is best-in-class for VM-level and filesystem backup but has no native understanding of Kubernetes objects. Velero understands Kubernetes semantics — namespace-scoped restore, CRDs, application-consistent hooks, CSI integration — but does not replace a VM backup system. Each tool covers its slice well, and they do not overlap.
+
+### PBS Placement
+
+PBS runs as a Proxmox VM on the `MS-02 Ultra` tier, not inside the platform cluster and not on the NAS itself.
+
+This placement is driven by several constraints:
+
+- **Upstream install path.** PBS is shipped as a Debian-based appliance. There is no official container image, and the project's design assumes systemd and a local filesystem for the datastore. Running PBS in Kubernetes, including via KubeVirt, forces an off-path install and a container story PBS was not designed for.
+- **No circular dependency on the platform cluster.** PBS exists to recover from failures, including platform-cluster failures. Running it inside the cluster it is meant to help restore is a trap.
+- **GitOps automation.** Synology VMM on the `DS923+` is functional but has effectively no automation ecosystem. No official Terraform provider, no first-class Ansible coverage, and a semi-documented DSM API. Managing the PBS VM declaratively on Synology would regress against the GitOps posture the rest of the lab holds. Proxmox, by contrast, has a mature Terraform provider, an actively maintained Ansible collection, Packer builders, and a stable API — the PBS VM fits the same declarative pipeline as other infrastructure VMs.
+- **Datastore locality.** The PBS datastore lives on NAS-backed storage via NFS from the `DS923+`, consistent with the NAS being the primary durable-data boundary. PBS reads and writes its dedup chunks against that mount; the VM itself stays lightweight and stateless enough to rebuild.
+
+The main tradeoff is timing. PBS depends on the Proxmox layer being up. Until that tier exists, backup for pre-existing state — notably the `VP6630` container volumes — is handled as an interim stopgap rather than through PBS.
+
+### Velero Placement
+
+Velero runs per Kubernetes cluster. The platform cluster gets its own Velero install, and each CAPI-provisioned downstream cluster gets its own.
+
+Every Velero instance writes to a shared S3-compatible object store exposed on the NAS. This keeps backup artifacts consolidated on the same durable substrate as PBS and lets restore operations pull from a single location, while still honoring the per-cluster operational boundary that Velero itself requires.
+
+Velero's backup scope per cluster includes:
+
+- Kubernetes manifests and CRDs
+- etcd snapshots (on clusters where Velero's etcd integration applies; Talos clusters additionally retain native `talosctl etcd snapshot` as a direct path, pushed into PBS)
+- persistent volumes via CSI snapshots where the cluster's CSI driver supports them, or via Velero's file-system backup path otherwise
+
+Downstream clusters are treated as independent recovery domains. They are not centrally registered into the platform cluster's Argo CD, and their Velero backups are self-contained so that a lost cluster can be reconstituted without standing up the platform cluster first.
+
+### Restore Drills
+
+No backup mechanism is considered complete until its restore path has been exercised at least once. For each of PBS-backed VMs, Velero-backed cluster state, and PBS-backed host-level volumes, the first production use of that backup must be paired with a documented restore drill against a lab-safe target.
+
+Restore expectations differ by tier:
+
+- **VMs** — PBS restore reconstitutes the full VM disk image. Tested via restore to a scratch VM on the Proxmox cluster.
+- **Kubernetes clusters** — Velero restore reconstitutes cluster objects and PVC data into an empty cluster. Tested via restore into a throwaway CAPI cluster.
+- **Host volumes** — `proxmox-backup-client` restore reconstitutes file trees on a target host. Tested via restore into a scratch directory on a lab VM.
+
+This applies equally to downstream clusters. A downstream cluster whose Velero backup has never been successfully restored is not considered protected.
+
+### Off-Site
+
+A single PBS datastore on the NAS leaves the lab exposed to NAS-level failure. Off-site replication is a planned addition rather than a day-one requirement. PBS supports pull-mode sync between PBS instances; the likely path is a second PBS target either on a different physical location or backed by S3-compatible object storage. Velero's object store can be mirrored or cross-region-replicated through whatever backend is chosen. The exact off-site design is deferred until the primary PBS is in place and the NAS-level failure scenarios have been characterized.
+
 ## Why This Layout
 
 This layout separates concerns in a way that matches the intended operating model:
@@ -360,4 +427,3 @@ As the design firms up, the next useful additions to this document are likely:
 - storage model
 - network model
 - downstream cluster lifecycle
-- restore drills and disaster recovery procedures
