@@ -17,6 +17,8 @@ Use these documents when:
 
 Current designs:
 
+- [Bootstrap and Core Delivery Model](./bootstrap-core-delivery.md)
+- [Service Exposure and Control Plane Endpoints](./service-exposure-and-control-plane-endpoints.md)
 - [Multi-Cluster GitOps Model](./gitops-multi-cluster.md)
 - [kro Consumption Model](./kro-consumption-model.md)
 - [Platform RGD Delivery Model](./platform-rgd-delivery.md)

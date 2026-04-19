@@ -110,7 +110,8 @@ The current cabling intent is:
 - Each `MS-02 Ultra` uses one `25GbE` link to the `CRS309`
 - A future second link per node may be dedicated to storage and/or Proxmox clustering traffic
 - Intel AMT links terminate on the `TL-SG105`
-- The `VP6630` remains the routing boundary and provides optional BGP-based floating IP advertisement for downstream clusters
+- The `VP6630` remains the routing boundary and is the intended upstream BGP
+  peer for Cilium-advertised service VIPs on future multi-node clusters
 
 The baseline network model is intentionally smaller than the previous lab design, but it still preserves a dedicated Layer 2 provisioning domain for Tinkerbell:
 
@@ -303,7 +304,16 @@ The desired outcome is that the clustered Proxmox layer exposes a stable substra
 
 After creation, downstream clusters are treated as strongly isolated environments rather than extensions of the platform cluster.
 
-Downstream clusters may make use of BGP-advertised floating IPs through the `VP6630` when they need stable network entrypoints, but this is an available capability rather than a default requirement.
+The intended multi-node cluster endpoint model is:
+
+- Cilium LB IPAM plus Cilium BGP peering with the `VP6630` for service and
+  ingress VIPs
+- Talos VIP for the canonical Kubernetes API endpoint on shared Layer 2
+- direct control-plane endpoints for the Talos API by default
+
+This is the intended standard for downstream clusters and for any future
+multi-node platform cluster, but it is not live on the current platform
+cluster while that cluster remains single-node.
 
 ## Role of GitOps
 
@@ -409,7 +419,9 @@ This layout separates concerns in a way that matches the intended operating mode
 - TerraKube remains available as a future addition for complementary infrastructure automation when that need becomes concrete
 - CAPI becomes the main abstraction for downstream cluster creation and scaling
 - Argo CD keeps the platform cluster declarative
-- BGP floating IPs remain a downstream-cluster capability rather than part of the platform cluster's default exposure model
+- multi-node clusters are intended to use Cilium+BGP for service VIPs and
+  Talos VIP for the Kubernetes API endpoint, while the current platform cluster
+  remains single-node
 
 The design also avoids forcing too much day-one complexity into the Proxmox layer. The nodes can start as individually useful machines before later being combined into a more integrated Proxmox topology.
 
