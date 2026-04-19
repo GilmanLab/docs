@@ -10,8 +10,8 @@ description: Proposed design for how GilmanLab publishes, consumes, and promotes
 Proposed.
 
 This document captures the intended role of `kro` in the lab and the current
-working model for how `kro` resources flow from developer-owned source
-repositories into environment-specific desired state in the `gitops` repo.
+working model for how shared platform-owned APIs and developer-owned release
+intent flow into environment-specific desired state in the `gitops` repo.
 
 This is an initial design draft. It intentionally does not define concrete
 `ResourceGraphDefinition` schemas yet. The next design pass should define the
@@ -91,7 +91,12 @@ Examples include future APIs such as:
 - team namespace bootstrap APIs
 - platform capability APIs
 
-This document does not define those schemas yet.
+The source of truth for those shared APIs lives in the `platform` repo, not the
+`gitops` repo. The platform team authors and releases those APIs there, then
+publishes versioned bundle artifacts that `gitops` can install per cluster.
+
+The concrete platform-side release and delivery model is described in
+[Platform RGD Delivery Model](./platform-rgd-delivery.md).
 
 ### Developer-owned application release intent
 
@@ -131,6 +136,9 @@ materialized into the `gitops` repo under environment-specific paths on
 This means the environment-specific folders in the `gitops` repo are still the
 final desired state that Argo CD reconciles.
 
+For platform-side APIs, the `gitops` repo also holds cluster-local installation
+of released RGD bundles and cluster-local instances such as `Platform`.
+
 ## Relationship to the GitOps Model
 
 This design builds on the multi-cluster GitOps model described in
@@ -138,8 +146,11 @@ This design builds on the multi-cluster GitOps model described in
 
 The important clarification is:
 
-- `kro` API definitions are platform-owned
+- `kro` API definitions are platform-owned and released from the `platform`
+  repo
 - developer-authored API instances are release inputs
+- `gitops` selects released API bundle versions per cluster and carries
+  cluster-local platform instances
 - Kargo materializes environment-specific outputs into the `gitops` repo
 - Argo CD reconciles those outputs from `main`
 
@@ -158,6 +169,24 @@ gitops/
 
 This document does not settle the exact `gitops` folder layout beyond that
 principle.
+
+The intended platform-side cluster bootstrap shape in `gitops` is:
+
+```text
+gitops/
+└── clusters/
+    └── <cluster>/
+        └── platform/
+            ├── kro.yaml
+            ├── rgds-platform.yaml
+            ├── rgds-apps.yaml
+            └── platform.yaml
+```
+
+This cluster-local layout installs `kro`, installs selected released RGD
+bundles, and declares the cluster-local `Platform` instance. The detailed
+release, build, and OCI publication model is described in
+[Platform RGD Delivery Model](./platform-rgd-delivery.md).
 
 ## Promotion Model
 
@@ -306,10 +335,12 @@ The current working model is:
 3. CI produces an image and a corresponding Git commit.
 4. Kargo bundles those artifacts into Freight.
 5. Kargo promotes Freight between environments.
-6. During promotion, Kargo combines release input with environment-specific
+6. The `gitops` repo installs released shared API bundles per cluster and
+   carries cluster-local platform instances such as `Platform`.
+7. During promotion, Kargo combines release input with environment-specific
    inputs and writes the final resource instances into the environment-specific
    area of the `gitops` repo on `main`.
-7. Argo CD reconciles those final resource instances from the `gitops` repo.
+8. Argo CD reconciles those final resource instances from the `gitops` repo.
 
 This is the design baseline for the next pass.
 
