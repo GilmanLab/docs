@@ -194,6 +194,7 @@ gitops/
 │   │   │   └── teamb.yaml
 │   │   └── applicationsets/
 │   │       ├── platform.yaml
+│   │       ├── clusters-platform.yaml
 │   │       ├── clusters-nonprod.yaml
 │   │       ├── clusters-prod.yaml
 │   │       ├── teams-nonprod.yaml
@@ -211,17 +212,32 @@ gitops/
 │   │       ├── teama-appa3/
 │   │       ├── teamb-appb1/
 │   │       └── teamb-appb2/
-│   └── rgds/
-│       ├── appdeployment.yaml
-│       └── teamnamespace.yaml
 ├── clusters/
+│   ├── platform/
+│   │   ├── platform/
+│   │   │   ├── kro.yaml
+│   │   │   ├── rgds-platform.yaml
+│   │   │   ├── rgds-apps.yaml
+│   │   │   └── platform.yaml
+│   │   ├── policies/
+│   │   └── shared/
 │   ├── nonprod/
+│   │   ├── platform/
+│   │   │   ├── kro.yaml
+│   │   │   ├── rgds-platform.yaml
+│   │   │   ├── rgds-apps.yaml
+│   │   │   └── platform.yaml
 │   │   ├── capsule/
 │   │   │   ├── teama.yaml
 │   │   │   └── teamb.yaml
 │   │   ├── policies/
 │   │   └── shared/
 │   └── prod/
+│       ├── platform/
+│       │   ├── kro.yaml
+│       │   ├── rgds-platform.yaml
+│       │   ├── rgds-apps.yaml
+│       │   └── platform.yaml
 │       ├── capsule/
 │       │   ├── teama.yaml
 │       │   └── teamb.yaml
@@ -243,8 +259,11 @@ gitops/
 
 The ownership model is:
 
-- `platform/`: platform-cluster state and shared APIs
-- `clusters/`: workload-cluster shared state
+- `platform/`: platform-cluster control-plane state
+- `clusters/*/platform/`: cluster-local `kro` bootstrap, released RGD bundle
+  installation, and cluster-local `Platform` instances
+- `clusters/*/capsule`, `clusters/*/policies`, and `clusters/*/shared`:
+  workload-cluster shared state
 - `teams/`: team-owned application instances
 
 ## Argo CD Model
@@ -253,10 +272,14 @@ One `Argo CD` instance runs on the platform cluster.
 
 It syncs:
 
-- `platform/argocd`, `platform/capi`, `platform/kargo`, and `platform/rgds` to
-  the platform cluster
-- `clusters/nonprod` to the `nonprod` cluster
-- `clusters/prod` to the `prod` cluster
+- `platform/argocd`, `platform/capi`, and `platform/kargo` to the platform
+  cluster
+- `clusters/platform/platform` to the platform cluster
+- `clusters/nonprod/platform`, `clusters/nonprod/capsule`,
+  `clusters/nonprod/policies`, and `clusters/nonprod/shared` to the `nonprod`
+  cluster
+- `clusters/prod/platform`, `clusters/prod/capsule`,
+  `clusters/prod/policies`, and `clusters/prod/shared` to the `prod` cluster
 - `teams/*/*/envs/dev`, `teams/*/*/envs/staging`, and
   `teams/*/*/ephemeral/*` to the `nonprod` cluster
 - `teams/*/*/envs/prod` to the `prod` cluster
@@ -265,7 +288,13 @@ The intended Argo shape is:
 
 - one `AppProject` per team
 - `ApplicationSet` for platform-owned fleet generation
+- one admin-owned bootstrap `Application` per cluster for
+  `clusters/<cluster>/platform/`
 - `Application` resources kept in the `argocd` namespace
+
+Within each `clusters/<cluster>/platform/` directory, sync waves should order
+objects so `kro` installs first, the released RGD bundles install second, and
+the cluster-local `Platform` instance is created last.
 
 Do not rely on application CRs scattered across arbitrary namespaces as the
 default control model. The central `argocd` namespace is simpler unless a later
@@ -277,10 +306,16 @@ team self-service requirement makes that extra complexity worth it.
 
 The intended pattern is:
 
-- shared `ResourceGraphDefinition`s live under `platform/rgds/`
-- environment-specific custom resources live under `teams/`
+- shared RGD source and release lifecycle live in the `platform` repo
+- cluster-local RGD bundle installation and cluster-local platform instances
+  live under `clusters/<cluster>/platform/`
+- environment-specific application custom resources live under `teams/`
 - Argo CD syncs the YAML
+- versioned RGD bundles are installed from OCI artifacts
 - `kro` expands the custom resources into the Kubernetes objects they own
+
+The platform-side release, CUE authoring, and OCI publication model is defined
+in [Platform RGD Delivery Model](./platform-rgd-delivery.md).
 
 An environment-specific application resource should be narrow and explicit. For
 example:
@@ -365,9 +400,12 @@ The intended policy is:
 ## Worked Example: TeamA / AppA1
 
 1. `CAPI` creates the `nonprod` and `prod` workload clusters.
-2. `Argo CD` syncs shared platform state to the platform cluster.
-3. `Argo CD` syncs Capsule tenants `teama` and `teamb` to `nonprod` and `prod`.
-4. `Argo CD` syncs the shared `kro` `ResourceGraphDefinition`s.
+2. `Argo CD` syncs shared control-plane state to the platform cluster.
+3. `Argo CD` syncs `clusters/platform/platform/`,
+   `clusters/nonprod/platform/`, and `clusters/prod/platform/`, installing
+   `kro`, the selected released `platform-rgds` and `apps-rgds` bundles, and
+   the cluster-local `Platform` instances.
+4. `Argo CD` syncs Capsule tenants `teama` and `teamb` to `nonprod` and `prod`.
 5. `teams/teama/appa1/envs/dev/app.yaml` defines an `AppDeployment` with
    namespace `teama-appa1-dev`.
 6. CI publishes a new image for `AppA1`.

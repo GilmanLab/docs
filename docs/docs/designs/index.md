@@ -19,6 +19,7 @@ Current designs:
 
 - [Multi-Cluster GitOps Model](./gitops-multi-cluster.md)
 - [kro Consumption Model](./kro-consumption-model.md)
+- [Platform RGD Delivery Model](./platform-rgd-delivery.md)
 - [App RGD Design](./app-rgd.md)
 
 Once a design is implemented and considered durable, its steady-state shape
