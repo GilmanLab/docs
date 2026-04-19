@@ -85,6 +85,12 @@ The high-level split is:
 - team boundary: Capsule tenant per team per workload cluster
 - workload boundary: namespace per `team-app-env`
 
+For future multi-node clusters, service and ingress VIPs are intended to use
+Cilium LB IPAM plus Cilium BGP peering with the `VP6630`, while the canonical
+Kubernetes API endpoint is intended to use Talos VIP. The control-plane
+endpoint model is defined in
+[Service Exposure and Control Plane Endpoints](./service-exposure-and-control-plane-endpoints.md).
+
 ## Cluster Roles
 
 ### Platform Cluster
@@ -214,16 +220,16 @@ gitops/
 │   │       └── teamb-appb2/
 ├── clusters/
 │   ├── platform/
+│   │   ├── bootstrap.yaml
 │   │   ├── platform/
-│   │   │   ├── kro.yaml
 │   │   │   ├── rgds-platform.yaml
 │   │   │   ├── rgds-apps.yaml
 │   │   │   └── platform.yaml
 │   │   ├── policies/
 │   │   └── shared/
 │   ├── nonprod/
+│   │   ├── bootstrap.yaml
 │   │   ├── platform/
-│   │   │   ├── kro.yaml
 │   │   │   ├── rgds-platform.yaml
 │   │   │   ├── rgds-apps.yaml
 │   │   │   └── platform.yaml
@@ -233,8 +239,8 @@ gitops/
 │   │   ├── policies/
 │   │   └── shared/
 │   └── prod/
+│       ├── bootstrap.yaml
 │       ├── platform/
-│       │   ├── kro.yaml
 │       │   ├── rgds-platform.yaml
 │       │   ├── rgds-apps.yaml
 │       │   └── platform.yaml
@@ -260,8 +266,10 @@ gitops/
 The ownership model is:
 
 - `platform/`: platform-cluster control-plane state
-- `clusters/*/platform/`: cluster-local `kro` bootstrap, released RGD bundle
-  installation, and cluster-local `Platform` instances
+- `clusters/*/bootstrap.yaml`: per-cluster version selection for reusable
+  bootstrap/core components delivered from the `platform` repo
+- `clusters/*/platform/`: released RGD bundle installation and cluster-local
+  `Platform` instances after the bootstrap/core layer is present
 - `clusters/*/capsule`, `clusters/*/policies`, and `clusters/*/shared`:
   workload-cluster shared state
 - `teams/`: team-owned application instances
@@ -274,10 +282,13 @@ It syncs:
 
 - `platform/argocd`, `platform/capi`, and `platform/kargo` to the platform
   cluster
+- `clusters/platform/bootstrap.yaml` to the platform cluster
 - `clusters/platform/platform` to the platform cluster
+- `clusters/nonprod/bootstrap.yaml` to the `nonprod` cluster
 - `clusters/nonprod/platform`, `clusters/nonprod/capsule`,
   `clusters/nonprod/policies`, and `clusters/nonprod/shared` to the `nonprod`
   cluster
+- `clusters/prod/bootstrap.yaml` to the `prod` cluster
 - `clusters/prod/platform`, `clusters/prod/capsule`,
   `clusters/prod/policies`, and `clusters/prod/shared` to the `prod` cluster
 - `teams/*/*/envs/dev`, `teams/*/*/envs/staging`, and
@@ -289,12 +300,17 @@ The intended Argo shape is:
 - one `AppProject` per team
 - `ApplicationSet` for platform-owned fleet generation
 - one admin-owned bootstrap `Application` per cluster for
-  `clusters/<cluster>/platform/`
+  `clusters/<cluster>/bootstrap.yaml`
 - `Application` resources kept in the `argocd` namespace
 
-Within each `clusters/<cluster>/platform/` directory, sync waves should order
-objects so `kro` installs first, the released RGD bundles install second, and
-the cluster-local `Platform` instance is created last.
+Each `clusters/<cluster>/bootstrap.yaml` selects the version of the reusable
+bootstrap/core components for that cluster. The full bootstrap/core delivery
+sequence is defined in
+[Bootstrap and Core Delivery Model](./bootstrap-core-delivery.md).
+
+Once the bootstrap/core layer is in place, `clusters/<cluster>/platform/`
+holds the released RGD bundle installation and the cluster-local `Platform`
+instance.
 
 Do not rely on application CRs scattered across arbitrary namespaces as the
 default control model. The central `argocd` namespace is simpler unless a later
@@ -308,14 +324,17 @@ The intended pattern is:
 
 - shared RGD source and release lifecycle live in the `platform` repo
 - cluster-local RGD bundle installation and cluster-local platform instances
-  live under `clusters/<cluster>/platform/`
+  live under `clusters/<cluster>/platform/` after the bootstrap/core layer has
+  already installed `kro`
 - environment-specific application custom resources live under `teams/`
 - Argo CD syncs the YAML
 - versioned RGD bundles are installed from OCI artifacts
 - `kro` expands the custom resources into the Kubernetes objects they own
 
 The platform-side release, CUE authoring, and OCI publication model is defined
-in [Platform RGD Delivery Model](./platform-rgd-delivery.md).
+in [Platform RGD Delivery Model](./platform-rgd-delivery.md). The preceding
+bootstrap/core delivery layer is defined in
+[Bootstrap and Core Delivery Model](./bootstrap-core-delivery.md).
 
 An environment-specific application resource should be narrow and explicit. For
 example:

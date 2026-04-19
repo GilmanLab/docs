@@ -43,6 +43,8 @@ cluster bootstrap in Git simple enough to reason about at a glance.
 ## Non-Goals
 
 - This document does not define the exact `Platform` schema.
+- This document does not define bootstrap/core component delivery for Cilium,
+  Argo CD, or `kro`.
 - This document does not define the full CI workflow YAML for release or
   publication.
 - This document does not define every future platform capability block.
@@ -132,13 +134,16 @@ CI may import CRDs or equivalent schemas into CUE so the rendered artifact can
 be validated structurally before publication. Cluster-side `kro` validation is
 still responsible for the final semantic checks when the RGD is created.
 
-## Cluster Consumption Model
+## Cluster-local Platform API Consumption Model
 
-The intended cluster-local bootstrap surface in `gitops` is:
+This document starts after the bootstrap/core layer has already installed
+`kro`. The preceding day-0/day-1 delivery sequence is defined in
+[Bootstrap and Core Delivery Model](./bootstrap-core-delivery.md).
+
+The intended cluster-local platform API surface in `gitops` is:
 
 ```text
 clusters/<cluster>/platform/
-├── kro.yaml
 ├── rgds-platform.yaml
 ├── rgds-apps.yaml
 └── platform.yaml
@@ -146,26 +151,20 @@ clusters/<cluster>/platform/
 
 Each file has one job:
 
-- `kro.yaml`: install `kro` itself
 - `rgds-platform.yaml`: install the selected released `platform-rgds` OCI
   artifact
 - `rgds-apps.yaml`: install the selected released `apps-rgds` OCI artifact
 - `platform.yaml`: instantiate the cluster-local `Platform` custom resource
 
-An admin-owned Argo CD bootstrap `Application` should point at
-`clusters/<cluster>/platform/` and use sync waves so the order is explicit:
-
-1. install `kro`
-2. install the released RGD bundles
-3. create the cluster-local `Platform` instance
-
-This keeps the cluster bootstrap surface intentionally small and makes the
+This keeps the cluster-local platform API surface intentionally small and makes the
 chosen bundle versions obvious in Git.
 
 ## Relationship to Other Designs
 
 This design builds on:
 
+- [Bootstrap and Core Delivery Model](./bootstrap-core-delivery.md) for day-0
+  and day-1 component delivery before `kro` is present
 - [Multi-Cluster GitOps Model](./gitops-multi-cluster.md) for cluster topology,
   tenancy, and application flow
 - [kro Consumption Model](./kro-consumption-model.md) for the ownership split
