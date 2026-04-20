@@ -134,10 +134,9 @@ artifacts.
 
 It owns:
 
-- canonical Helm values for reusable cluster primitives
+- wrapper Helm charts for reusable cluster primitives
 - bootstrap-safe rendered manifests for Talos/CAPI day-0 consumption
-- component-scoped Argo application definitions that use the same canonical
-  source inputs
+- released OCI chart artifacts for the GitOps-managed steady-state install
 - version tags and release history for those artifacts
 
 It does not own per-cluster version selection or cluster-local desired state.
@@ -182,53 +181,51 @@ The intended `platform` repo layout is:
 platform/
 └── bootstrap/
     ├── cilium/
-    │   ├── values/
-    │   │   ├── base.yaml
-    │   │   ├── bootstrap-overrides.yaml
-    │   │   └── full-overrides.yaml
+    │   ├── Chart.yaml
+    │   ├── Chart.lock
+    │   ├── values.yaml
+    │   ├── bootstrap-values.yaml
+    │   ├── templates/
     │   ├── render/
     │   │   ├── bootstrap.yaml
     │   │   └── full.yaml
-    │   └── app.yaml
     ├── argocd/
-    │   ├── values/
-    │   │   ├── base.yaml
-    │   │   ├── bootstrap-overrides.yaml
-    │   │   └── full-overrides.yaml
+    │   ├── Chart.yaml
+    │   ├── Chart.lock
+    │   ├── values.yaml
+    │   ├── bootstrap-values.yaml
     │   ├── render/
     │   │   ├── bootstrap.yaml
     │   │   └── full.yaml
-    │   └── app.yaml
     └── kro/
-        ├── values/
-        │   ├── base.yaml
-        │   └── full-overrides.yaml
+        ├── Chart.yaml
+        ├── Chart.lock
+        ├── values.yaml
         ├── render/
         │   └── full.yaml
-        └── app.yaml
 ```
 
 The intended semantics are:
 
-- `values/base.yaml`: shared component baseline
-- `values/bootstrap-overrides.yaml`: bootstrap-only overrides needed for
-  Talos/CAPI-safe day-0 delivery
-- `values/full-overrides.yaml`: steady-state overrides for the GitOps-managed
-  install
+- `Chart.yaml`: wrapper chart metadata and the pinned upstream chart dependency
+- `Chart.lock`: the locked dependency resolution used for local render parity
+  and chart publication
+- `values.yaml`: steady-state defaults for the GitOps-managed install
+- `bootstrap-values.yaml`: bootstrap-only overrides needed for Talos/CAPI-safe
+  day-0 delivery when a bootstrap lane differs from the steady-state install
+- `templates/`: platform-owned manifests layered on top of the upstream chart
 - `render/bootstrap.yaml`: the immutable raw manifest Talos/CAPI consumes for
   day-0 bring-up
 - `render/full.yaml`: the fully rendered steady-state manifest for review and
   validation parity with the Helm-driven install
-- `app.yaml`: the component-scoped Argo CD application definition using the
-  canonical chart, version, and full values inputs
 
 The per-cluster `clusters/<cluster>/bootstrap.yaml` resources in `gitops`
 remain the only cluster-specific version-selection surface. They pin
-destination and `targetRevision` while reusing the canonical component source
-shape defined in the matching `platform/bootstrap/<component>/app.yaml`.
+destination and chart `targetRevision` while pointing directly at the released
+OCI wrapper charts published from `platform`.
 
 `kro` has no Talos/CAPI bootstrap variant in the current design, so it does not
-need `bootstrap-overrides.yaml` or `render/bootstrap.yaml`.
+need `bootstrap-values.yaml` or `render/bootstrap.yaml`.
 
 The intended `gitops` repo surface is:
 
@@ -265,9 +262,10 @@ The intended versioning model is:
 1. Change the canonical values or source inputs in `platform`.
 2. Re-render `render/bootstrap.yaml` and `render/full.yaml` from those pinned
    inputs.
-3. Cut a versioned `platform` release tag.
+3. Cut a component-scoped release tag and publish the wrapper chart as an OCI
+   artifact.
 4. Bump each cluster's `clusters/<cluster>/bootstrap.yaml` in `gitops` to the
-   selected tag.
+   selected chart version.
 5. If a day-0 artifact changed, also bump the immutable bootstrap artifact
    references in:
    - platform-cluster Talos config in `infra`
@@ -277,7 +275,7 @@ The versioning rules are:
 
 - cluster selections happen in `gitops`
 - Talos/CAPI raw artifact URLs use immutable commit SHAs
-- human-facing release selection happens by tag
+- human-facing GitOps release selection happens by OCI chart version
 - tags must be treated as immutable once published
 
 The SHA referenced by Talos/CAPI must correspond to the released artifact

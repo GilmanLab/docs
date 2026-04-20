@@ -267,7 +267,7 @@ The ownership model is:
 
 - `platform/`: platform-cluster control-plane state
 - `clusters/*/bootstrap.yaml`: per-cluster version selection for reusable
-  bootstrap/core components delivered from the `platform` repo
+  bootstrap/core OCI Helm charts released from the `platform` repo
 - `clusters/*/platform/`: released RGD bundle installation and cluster-local
   `Platform` instances after the bootstrap/core layer is present
 - `clusters/*/capsule`, `clusters/*/policies`, and `clusters/*/shared`:
@@ -304,8 +304,9 @@ The intended Argo shape is:
 - `Application` resources kept in the `argocd` namespace
 
 Each `clusters/<cluster>/bootstrap.yaml` selects the version of the reusable
-bootstrap/core components for that cluster. The full bootstrap/core delivery
-sequence is defined in
+bootstrap/core components for that cluster by pinning the released OCI chart
+versions for the admin-owned Cilium, Argo CD, and `kro` Applications. The full
+bootstrap/core delivery sequence is defined in
 [Bootstrap and Core Delivery Model](./bootstrap-core-delivery.md).
 
 Once the bootstrap/core layer is in place, `clusters/<cluster>/platform/`
