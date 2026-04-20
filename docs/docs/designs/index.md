@@ -23,6 +23,8 @@ Current designs:
 - [kro Consumption Model](./kro-consumption-model.md)
 - [Platform RGD Delivery Model](./platform-rgd-delivery.md)
 - [App RGD Design](./app-rgd.md)
+- [AWS Lab Account](./aws-lab-account.md)
+- [Keycloak](./keycloak.md)
 
 Once a design is implemented and considered durable, its steady-state shape
 should be folded back into the architecture overview and any relevant runbooks.
