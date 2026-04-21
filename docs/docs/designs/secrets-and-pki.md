@@ -111,10 +111,6 @@ arn:aws:kms:us-west-2:186067932323:key/2aba1d94-6eaf-4d80-8d26-2077f32fd7c5
 The existing PGP and age recipients are removed from SOPS metadata. After the
 cutover, AWS is the only routine decrypt control surface.
 
-This is an intentional break from the current state. Today, `secrets/.sops.yaml`
-contains only age and PGP recipients. The KMS key exists, but the SOPS
-recipient rollout has not been performed.
-
 ### Scoped decryption
 
 SOPS files are encrypted with AWS KMS encryption context so IAM can grant
@@ -154,9 +150,10 @@ Private repository access uses a GitHub App owned by `GilmanLab` and installed
 on `GilmanLab/secrets`.
 
 The App private signing key is stored in SSM Parameter Store as a SecureString
-in the `lab` account. A bootstrap workload uses its AWS identity to read that
-specific SSM parameter, generates a GitHub App JWT, exchanges it for a
-short-lived installation token, and clones the repository over HTTPS.
+in the `lab` account. Bootstrap workloads do not read that key directly. They
+invoke the `github-token-broker` Lambda with their AWS identity. The broker is
+the only normal principal that can read the App private key, generate a GitHub
+App JWT, and exchange it for a short-lived installation token.
 
 Installation tokens are requested with the narrowest useful shape:
 
@@ -169,6 +166,11 @@ ttl          = 1 hour
 The GitHub token grants access to encrypted files. AWS KMS grants access to
 plaintext. A workload may be able to clone the whole private repository while
 still being unable to decrypt files outside its KMS context scope.
+
+Callers may use either `git` or the GitHub Contents API with `curl` to fetch
+encrypted files. The no-`git` path still uses the GitHub token only for
+encrypted repository access; the Lambda does not return SOPS files and does
+not decrypt them.
 
 ### Historical exposure
 

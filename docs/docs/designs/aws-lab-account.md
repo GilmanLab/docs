@@ -273,8 +273,8 @@ An AWS-resident bootstrap instance must be able to, starting from only its
 IAM role:
 
 1. Reach the tailnet.
-2. Clone the private `secrets/` repo from GitHub.
-3. Decrypt SOPS-encrypted files in that repo.
+2. Fetch encrypted files from the private `secrets/` repo on GitHub.
+3. Decrypt those SOPS-encrypted files locally.
 
 At no point may the instance hold a durable, plaintext credential for any of
 the three systems (Tailscale, GitHub, SOPS). All identity traces back to the
@@ -297,22 +297,25 @@ automation paths live in a separate secrets design doc. This document only
 establishes that the KMS key lives in the `lab` account and is the anchor
 for machine decryption.
 
-### GitHub App for repo access
+### GitHub App token broker
 
-Cloning private repos from an AWS-resident bootstrap instance uses a
+Fetching private repo contents from an AWS-resident bootstrap instance uses a
 **GitHub App** owned by the `GilmanLab` organization and installed on the
-`secrets` repo (plus any other private repos bootstrap needs to reach).
+`secrets` repo.
 
 - The App's **private signing key** is stored in an SSM Parameter Store
   `SecureString` in the `lab` account.
-- The instance's IAM role grants `ssm:GetParameter` + `kms:Decrypt` on that
-  specific parameter path only.
-- On bootstrap, the instance fetches the key, generates a JWT, exchanges it
-  for a short-lived installation token (1-hour TTL), and clones.
+- The `github-token-broker` Lambda execution role grants `ssm:GetParameter` on
+  the GitHub App parameter path.
+- Bootstrap principals get `lambda:InvokeFunction` on the broker, not direct
+  access to the App private key.
+- On bootstrap, the caller invokes the broker, receives a short-lived
+  installation token for `GilmanLab/secrets` with `contents:read`, and then
+  fetches encrypted files with `git` or the GitHub Contents API.
 
 The only durable non-AWS secret anywhere in the chain is the App's private
-signing key itself, and that key is at rest in AWS, gated by IAM. Installation
-tokens are never stored on disk.
+signing key itself, and that key is at rest in AWS behind the broker execution
+role. Installation tokens are never stored on disk.
 
 ### The single-anchor property
 
@@ -321,9 +324,10 @@ Taken together, the chain on a single EC2 bootstrap instance is:
 | Step | Identity used                                                  |
 |------|----------------------------------------------------------------|
 | Join tailnet | IAM role (via workload identity federation) |
-| Read GitHub App key | IAM role (via instance profile → SSM + KMS) |
-| Mint installation token | App private key (short-lived, in memory) |
-| Clone `secrets/` repo | Installation token (short-lived, in memory) |
+| Invoke GitHub token broker | IAM role (via instance profile → Lambda) |
+| Read GitHub App key | Lambda execution role (via SSM, optionally KMS) |
+| Mint installation token | App private key (short-lived, in broker memory) |
+| Fetch encrypted `secrets/` files | Installation token (short-lived, in caller memory) |
 | Decrypt SOPS files | IAM role (via instance profile → KMS) |
 
 Every persistent identity is the IAM role. Lose AWS, lose bootstrap. Gain AWS,
