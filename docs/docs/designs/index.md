@@ -25,6 +25,7 @@ Current designs:
 - [App RGD Design](./app-rgd.md)
 - [AWS Lab Account](./aws-lab-account.md)
 - [Keycloak](./keycloak.md)
+- [Secrets and PKI](./secrets-and-pki.md)
 
 Once a design is implemented and considered durable, its steady-state shape
 should be folded back into the architecture overview and any relevant runbooks.
