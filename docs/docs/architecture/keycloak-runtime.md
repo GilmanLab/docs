@@ -20,9 +20,9 @@ The runtime contract is:
 - services: upstream Keycloak plus upstream Postgres, both pinned in `infra`
 - database: colocated Postgres with data on the instance EBS root volume
 - access name: `id.glab.lol`
-- TLS: ACME DNS-01 through Route 53 using the instance IAM role
-- reverse proxy: Caddy or equivalent on the host, terminating TLS and proxying
-  to Keycloak on loopback
+- TLS: Traefik ACME DNS-01 through Route 53 using the instance IAM role
+- reverse proxy: Traefik on the host, terminating TLS and proxying to Keycloak
+  on loopback
 
 State recovery uses application backups. Do not depend on EBS snapshots or AMI
 backups as the primary recovery path.

@@ -280,40 +280,44 @@ Vault PKI roles issue short-lived certificates for internal use cases such as
 service-to-service mTLS, database client authentication, internal controllers,
 and future SPIRE upstream authority material.
 
-The current implementation history matters for rebuilds: the existing
-`infra/security/pki/root-ca` stack was applied against an earlier AWS account.
-The lab root must be recreated in the current `lab` account with the
-`pathlen:2` hierarchy, then the earlier account root key and state can be
-cleaned up after consumers trust the new chain.
+The current lab-account root is the committed root in
+`infra/security/pki/root-ca`. It is backed by the `lab` account KMS key
+`alias/glab-pki-root-ca` and uses the `pathlen:2` hierarchy above. Do not rely
+on the older pre-`lab` account root as the target trust anchor for new internal
+PKI work.
 
-Router-hosted `step-ca` is limited to existing consumers during migration.
-Runtime issuance uses cert-manager plus Route 53 for public TLS and Vault for
-internal PKI.
+RouterOS device certificates remain an existing-consumer migration thread.
+Runtime issuance for the target architecture uses cert-manager plus Route 53
+for public TLS and Vault for internal PKI, but RouterOS CA migration is
+deprioritized until the core lab architecture is farther along.
 
-The small implementation slices are:
+Foundations already completed:
 
-1. Rewrap existing SOPS files with `alias/glab-sops`, add encryption context,
-   and remove PGP/age recipients.
-2. Rotate bootstrap secrets that previously depended on PGP/age-only history.
-3. Create the GitHub App plus SSM bootstrap path for `secrets` repo access.
-4. Recreate the internal root CA in the current `lab` account with the new path
-   length.
-5. Add the shared Vault unseal KMS key and `bank-vaults` storage layout.
-6. Stand up Vault in one cluster and prove the SOPS-to-Vault bootstrap handoff.
-7. Add cert-manager DNS-01 with Route 53 ACME delegation for one cluster.
-8. Migrate internal PKI consumers from `step-ca` to the per-cluster issuers.
+- current SOPS files are rewrapped with `alias/glab-sops`, KMS encryption
+  context, and no routine PGP/age recipients
+- the GitHub App bootstrap material is stored in SSM, and
+  `github-token-broker` mints short-lived `contents:read` tokens for
+  `GilmanLab/secrets`
+- the internal root CA exists in the current `lab` account with `pathlen:2`
 
-Open implementation threads:
+Remaining implementation threads:
 
-- exact KMS encryption-context key names and allowed scope values
-- exact GitHub App name, installation ID storage, and SSM parameter paths
+- rotate bootstrap secrets where old PGP/age-encrypted git history should no
+  longer be trusted
+- attach `arn:aws:iam::186067932323:policy/glab-github-token-broker-invoke` to
+  the real bootstrap principals that should mint GitHub installation tokens
+- decide whether `/glab/bootstrap/github-app/private-key-pem` should move from
+  the default SSM KMS key to a customer-managed KMS key
 - whether Vault unseal material uses one shared S3 bucket with prefixes or
   separate per-cluster buckets
+- add the shared Vault unseal KMS key and `bank-vaults` storage layout
+- stand up Vault in one cluster and prove the SOPS-to-Vault bootstrap handoff
+- add cert-manager DNS-01 with Route 53 ACME delegation for one cluster
 - how trust bundles are distributed to workloads that need to trust internal
   Vault or SPIRE issuers
 - whether any future public TLS use case justifies wildcard certificates
-- when remaining `step-ca` consumers should be allowed to expire naturally
-  versus being actively replaced
+- migrate existing internal PKI consumers to the per-cluster issuers when they
+  become important enough to justify the work
 
 ## Identity
 

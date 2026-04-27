@@ -16,7 +16,7 @@ would be thrown away after day one.
 
 Before touching the real `UM760`, prove the risky assumptions locally:
 
-- generate or download a seeded IncusOS USB/IMG image
+- generate or download a seeded IncusOS USB/IMG `Operation` image
 - write it to a VM's only disk
 - boot that disk as the steady-state IncusOS host
 - confirm Incus initialization, trusted client certificate access, network
@@ -48,9 +48,9 @@ The intended host bootstrap sequence is:
 
 1. Start the temporary VyOS-hosted `k0s` cluster.
 2. Install Tinkerbell and the CAPI providers into that cluster.
-3. Generate a seeded IncusOS USB/IMG image for the `UM760`.
-4. Use Tinkerbell and HookOS to write that image directly to the internal
-   `UM760` disk through `image2disk` or `oci2disk`.
+3. Generate a seeded IncusOS USB/IMG `Operation` image for the `UM760`.
+4. Use Tinkerbell and HookOS to write that final-disk image directly to the
+   internal `UM760` disk through `image2disk` or `oci2disk`.
 5. Boot the `UM760` into IncusOS as the steady-state host OS.
 6. Initialize Incus on the `UM760` with the first-node defaults needed for the
    final cluster.
@@ -63,6 +63,10 @@ The same Tinkerbell path provisions the `MS-02` hosts later. Joining nodes must
 use IncusOS seed settings appropriate for joining the existing Incus cluster,
 not for creating independent local Incus defaults.
 
+A normal IncusOS `Installation` image must not be treated as equivalent to the
+`Operation` image for the single-disk `UM760` path. The bootstrap assumption is
+that the selected image is already a bootable final-disk artifact.
+
 ## Platform Cluster Bring-Up
 
 The platform cluster starts as one Talos VM on the `UM760`.
@@ -72,11 +76,19 @@ cluster reachable and let GitOps take over:
 
 - bootstrap-safe Cilium
 - minimal Argo CD on the platform cluster
+- the `platform-bootstrap` AppProject
 - an admin-owned root Application pointing at the platform cluster selection in
   `gitops`
 
+The `platform-bootstrap` AppProject is part of the day-0 handoff contract. It
+must exist before the root Application, because relying on Argo CD's startup
+creation of the `default` project caused a first-bootstrap race.
+
 After Argo CD is running, the GitOps bootstrap selection installs the full
 cluster-core components: full Cilium, full/self-managed Argo CD, and `kro`.
+The platform cluster bootstrap selection uses three separate Applications for
+Cilium, Argo CD, and `kro`, all on the `platform-bootstrap` project, so
+ownership and failure domains remain visible.
 
 The platform repo owns canonical bootstrap/core artifacts and release history.
 The gitops repo owns per-cluster version selection and cluster-local desired
@@ -180,7 +192,8 @@ syncs cluster-core and platform API state to them after they exist.
 
 The bootstrap path is not complete until these are proven:
 
-- IncusOS image generation and seeding for first-node and joining-node modes
+- IncusOS `Operation` image generation and seeding for first-node and
+  joining-node modes
 - Tinkerbell image writing from HookOS to the selected disks
 - VyOS-hosted `k0s` stability for the temporary bootstrap stack
 - CAPN plus Talos providers creating Talos VMs with the desired boot mode,
