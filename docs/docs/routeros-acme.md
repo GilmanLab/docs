@@ -5,6 +5,16 @@ description: How the MikroTik router and switch get WebFig HTTPS certificates fr
 
 # RouterOS ACME Certificates
 
+:::note
+
+This page documents RouterOS certificates that still use `step-ca`. The
+architecture docs define the steady-state PKI path: public HTTP TLS uses Let's
+Encrypt with Route 53 DNS-01, and internal runtime PKI uses Vault
+intermediates. Keep this page as an operational reference until these RouterOS
+consumers are migrated.
+
+:::
+
 The `CCR2004` home router and `CRS309` lab switch use the lab `step-ca`
 intermediate for WebFig HTTPS certificates.
 
