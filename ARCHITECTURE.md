@@ -1,6 +1,8 @@
 # Architecture Overview
 
-The canonical version of this document now lives in
+The canonical architecture entrypoint lives in
 [`docs/docs/architecture.md`](docs/docs/architecture.md).
 
-Use the Docusaurus source under `docs/` for ongoing updates. The canonical page now includes the current DNS and naming model for `lab.gilman.io` alongside the broader platform architecture.
+Start there for the current IncusOS, Incus, Talos, CAPI, GitOps, networking,
+secrets, and recovery architecture. Focused architecture documents live under
+[`docs/docs/architecture/`](docs/docs/architecture/).
