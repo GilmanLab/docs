@@ -24,6 +24,10 @@ VyOS is intentionally part of the bootstrap path. The lab already depends on it
 for network reachability, so using it for API fronting and temporary bootstrap
 coordination keeps the early system small.
 
+In the current implementation split, VyOS consumes the released
+`ghcr.io/gilmanlab/platform/bootstrap-k0s:<version>` image through `infra` and
+also serves the IncusOS operation image on `LAB_PROV` during host bootstrap.
+
 ### UM760
 
 The `UM760` runs IncusOS as the first permanent host and the first Incus

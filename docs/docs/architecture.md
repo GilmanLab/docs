@@ -64,8 +64,8 @@ The following items are deliberately still prototype-validation work:
 - IncusOS `Operation` image generation and seeding for a final disk image.
 - Writing the chosen IncusOS image through Tinkerbell `image2disk` or
   `oci2disk`.
-- Running the temporary bootstrap `k0s` cluster as a host-networked VyOS
-  container.
+- Running the released `bootstrap-k0s` image on VyOS with the required
+  privileges, mounts, and host-network behavior.
 - CAPN plus the Talos providers creating the desired Talos VM shape.
 - Exact VLANs, static addresses, ASNs, DNS records, and service VIP pools.
 
