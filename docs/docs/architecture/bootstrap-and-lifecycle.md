@@ -31,6 +31,13 @@ new path are real before producing exact runbooks.
 The first real bootstrap cluster is a disposable single-node `k0s` cluster on
 VyOS, likely as a host-networked container.
 
+The implementation boundary is:
+
+- `platform/bootstrap/k0s` owns the released bootstrap image
+- `infra/network/vyos` pins and runs that released image on the router
+- `infra/compute/incusos` owns the declarative IncusOS operation-image inputs
+  and rendered Tinkerbell `Hardware`, `Template`, and `Workflow` objects
+
 It exists only to run:
 
 - Tinkerbell
@@ -39,16 +46,20 @@ It exists only to run:
 - Talos bootstrap provider
 - Talos control-plane provider
 
-VyOS container support must be validated with the required privileges, mounts,
-cgroups, and stability before this becomes an operator recipe.
+The bootstrap image itself is a reusable artifact. Host-specific networking and
+runtime values are injected by `infra` at deploy time rather than baked into
+the image.
 
 ## Host Bootstrap Flow
 
 The intended host bootstrap sequence is:
 
-1. Start the temporary VyOS-hosted `k0s` cluster.
-2. Install Tinkerbell and the CAPI providers into that cluster.
-3. Generate a seeded IncusOS USB/IMG `Operation` image for the `UM760`.
+1. Start the released `bootstrap-k0s` image on VyOS through the `infra`
+   runtime wiring.
+2. Let that image bring up Tinkerbell and the CAPI providers in the temporary
+   bootstrap cluster.
+3. Generate a seeded IncusOS `Operation` image for the `UM760` from the
+   declarative inputs under `infra/compute/incusos/`.
 4. Use Tinkerbell and HookOS to write that final-disk image directly to the
    internal `UM760` disk through `image2disk` or `oci2disk`.
 5. Boot the `UM760` into IncusOS as the steady-state host OS.
@@ -62,6 +73,10 @@ The intended host bootstrap sequence is:
 The same Tinkerbell path provisions the `MS-02` hosts later. Joining nodes must
 use IncusOS seed settings appropriate for joining the existing Incus cluster,
 not for creating independent local Incus defaults.
+
+The first supported rendered host flow is `um760`. Joiner-specific Tinkerbell
+templates and workflows for the `MS-02` nodes come later, after the first-node
+path is proven.
 
 A normal IncusOS `Installation` image must not be treated as equivalent to the
 `Operation` image for the single-disk `UM760` path. The bootstrap assumption is
@@ -95,6 +110,13 @@ The gitops repo owns per-cluster version selection and cluster-local desired
 state. Infra and CAPI templates own only immutable day-0 references needed for
 fresh installs and reinstalls.
 
+For the temporary bootstrap plane specifically:
+
+- `platform` publishes `ghcr.io/gilmanlab/platform/bootstrap-k0s:<version>`
+- `infra/network/vyos` consumes that exact released tag on the router
+- `infra/compute/incusos` owns the bootstrap image inputs and the rendered
+  Tinkerbell objects applied to that cluster
+
 ## Bootstrap/Core Artifact Contract
 
 The `platform/bootstrap/` subtree carries both Talos/CAPI day-0 substrate
@@ -121,6 +143,12 @@ platform/
     │   └── render/
     │       ├── bootstrap.yaml
     │       └── full.yaml
+    ├── k0s/
+    │   ├── Dockerfile
+    │   ├── VERSION
+    │   ├── k0s.yaml
+    │   ├── bootstrap-k0s.sh
+    │   └── manifests/
     └── kro/
         ├── Chart.yaml
         ├── Chart.lock
@@ -146,12 +174,17 @@ The contract for each component is:
 `kro` has no Talos/CAPI bootstrap variant, so it does not need
 `bootstrap-values.yaml` or `render/bootstrap.yaml`.
 
+`bootstrap/k0s` is the exception to the chart-wrapper pattern. It is a released
+bootstrap image directory, not a wrapper chart. It is consumed by `infra` as a
+GHCR image tag rather than as a raw manifest or OCI Helm chart.
+
 The release and selection rules are:
 
 - Change canonical inputs in `platform`.
 - Re-render `render/bootstrap.yaml` and `render/full.yaml`.
 - Publish the wrapper chart as an OCI artifact under a component-scoped release
   tag.
+- Publish `bootstrap/k0s` as `ghcr.io/gilmanlab/platform/bootstrap-k0s:<version>`.
 - Select versions per cluster through `gitops/clusters/<cluster>/bootstrap.yaml`.
 - Reference raw Talos/CAPI artifacts by immutable commit SHA, not floating tags.
 - Keep the SHA referenced by Talos/CAPI aligned with the released artifact
@@ -195,7 +228,8 @@ The bootstrap path is not complete until these are proven:
 - IncusOS `Operation` image generation and seeding for first-node and
   joining-node modes
 - Tinkerbell image writing from HookOS to the selected disks
-- VyOS-hosted `k0s` stability for the temporary bootstrap stack
+- VyOS-hosted `bootstrap-k0s` runtime stability with the required privileges,
+  mounts, and host-network behavior
 - CAPN plus Talos providers creating Talos VMs with the desired boot mode,
   network attachment, storage pool, and endpoint model
 - `clusterctl move` from the temporary cluster to the platform cluster
