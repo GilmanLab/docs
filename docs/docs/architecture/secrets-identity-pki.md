@@ -280,6 +280,33 @@ Vault PKI roles issue short-lived certificates for internal use cases such as
 service-to-service mTLS, database client authentication, internal controllers,
 and future SPIRE upstream authority material.
 
+### IncusOS Client PKI
+
+IncusOS API access is a bootstrap-cycle exception. CAPN must authenticate to the
+Incus HTTPS API before the platform cluster exists, because CAPN creates the
+Talos VMs that become the platform cluster. That first IncusOS seed therefore
+needs a temporary bootstrap client identity before platform Vault can exist.
+
+That bootstrap identity is not the long-term trust model. It is used only to
+create the first platform Talos VM and to install the Vault-backed IncusOS trust
+path after platform Vault is healthy.
+
+The long-term IncusOS API trust model is:
+
+- platform Vault owns a dedicated IncusOS client-auth issuer
+- IncusOS trusts that issuer for API client authentication
+- `core.trust_ca_certificates` is enabled only for that narrow IncusOS client
+  authority
+- CAPN, operator, and break-glass clients use short-lived leaf certificates from
+  that issuer
+- the temporary bootstrap client certificate is removed from Incus trust after
+  the Vault-backed trust path is active
+
+Do not reuse the general cluster workload intermediate as the IncusOS client
+authority. The IncusOS issuer exists to authorize clients that can manage Incus
+infrastructure, so its signing key and Vault policy are part of the Incus
+control-plane boundary.
+
 The current lab-account root is the committed root in
 `infra/security/pki/root-ca`. It is backed by the `lab` account KMS key
 `alias/glab-pki-root-ca` and uses the `pathlen:2` hierarchy above. Do not rely
@@ -353,6 +380,8 @@ backups rather than treated as an irreplaceable pet.
 - [cert-manager Route 53 DNS-01](https://cert-manager.io/docs/configuration/acme/dns01/route53/)
 - [cert-manager delegated DNS-01](https://cert-manager.io/docs/configuration/acme/dns01/#delegated-domains-for-dns01)
 - [SOPS](https://github.com/getsops/sops)
+- [Incus remote API authentication](https://linuxcontainers.org/incus/docs/main/authentication/)
+- [Incus server configuration](https://linuxcontainers.org/incus/docs/main/server_config/)
 - [Vault](https://developer.hashicorp.com/vault/docs)
 - [Vault PKI secrets engine](https://developer.hashicorp.com/vault/docs/secrets/pki)
 - [Vault PKI intermediate guidance](https://developer.hashicorp.com/vault/docs/secrets/pki/considerations)

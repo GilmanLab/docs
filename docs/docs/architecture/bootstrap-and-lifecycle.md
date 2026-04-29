@@ -70,6 +70,12 @@ The intended host bootstrap sequence is:
 9. Use CAPN and the Talos providers to create the first platform Talos VM on
    the `UM760`.
 
+The IncusOS seed uses a temporary bootstrap client identity only to break the
+initial dependency cycle. After platform Vault is healthy, IncusOS API trust
+pivots to the Vault-backed IncusOS client-auth issuer described in
+[Secrets, Identity, DNS, and PKI](./secrets-identity-pki.md#incusos-client-pki),
+and the bootstrap client certificate is removed from Incus trust.
+
 The same Tinkerbell path provisions the `MS-02` hosts later. Joining nodes must
 use IncusOS seed settings appropriate for joining the existing Incus cluster,
 not for creating independent local Incus defaults.
