@@ -334,8 +334,11 @@ realm admin account. GitHub is not a human SSO dependency for Keycloak. The
 GitHub token broker remains a machine bootstrap path for short-lived access to
 encrypted secrets.
 
-Keycloak configuration starts with a first-boot import from `infra`. Runtime
-state such as sessions, user credentials, and WebAuthn enrollment is backed up
+Keycloak configuration starts from `infra` and is re-applied when the rendered
+realm configuration hash changes. The current client surface includes a public
+`incus` OIDC client for human Incus authentication; TLS client certificates
+remain the bootstrap, machine, and break-glass path for IncusOS. Runtime state
+such as sessions, user credentials, and WebAuthn enrollment is backed up
 separately.
 
 See [Keycloak Runtime](./keycloak-runtime.md) for the EC2 runtime shape,
