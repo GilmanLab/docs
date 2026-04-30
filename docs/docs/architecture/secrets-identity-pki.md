@@ -324,12 +324,19 @@ Remaining implementation threads:
 Keycloak is the central human-facing identity system for lab services, but it
 is not a bootstrap dependency for the raw recovery path.
 
-Keycloak runs on a dedicated EC2 instance in the `lab` account, colocated with
-Postgres and managed with Docker Compose. It is reached at `id.glab.lol`.
-GitHub is the upstream identity provider through OIDC.
+Keycloak runs on a dedicated Flatcar EC2 instance in the `lab` account, with
+Postgres colocated on a dedicated encrypted data volume. It is reached at
+`id.glab.lol`.
 
-Keycloak configuration should be reconciled from git. Runtime state such as
-sessions, user credentials, and TOTP enrollment is backed up separately.
+The first implemented human admin path is local Keycloak authentication:
+username and password plus WebAuthn/YubiKey enrollment for the single `lab`
+realm admin account. GitHub is not a human SSO dependency for Keycloak. The
+GitHub token broker remains a machine bootstrap path for short-lived access to
+encrypted secrets.
+
+Keycloak configuration starts with a first-boot import from `infra`. Runtime
+state such as sessions, user credentials, and WebAuthn enrollment is backed up
+separately.
 
 See [Keycloak Runtime](./keycloak-runtime.md) for the EC2 runtime shape,
 backup contract, rebuild/restore paths, hostname constraint, and break-glass
