@@ -64,6 +64,12 @@ for YubiKey-backed touch authentication. The temporary master bootstrap admin
 exists only for initial realm creation and should be disabled after the browser
 login path is proven.
 
+The first service client is `incus`, a public OIDC client for Incus human
+authentication. It enables OAuth 2.0 Device Authorization Grant and does not
+define Keycloak roles, OpenFGA configuration, or a custom authorization model.
+Incus OIDC users are full Incus administrators until OpenFGA becomes worth the
+extra moving parts.
+
 Future clients are expected to include:
 
 - Kubernetes API OIDC for Talos clusters
@@ -83,6 +89,7 @@ includes:
 - roles and role mappings
 - authentication flows and required actions
 - realm-level settings
+- OIDC clients, starting with the public `incus` client
 - the local admin user shell, with its password supplied from SOPS at import
   time
 
@@ -95,12 +102,21 @@ Runtime state is intentionally out of git:
 - audit and event logs
 - ephemeral tokens and one-time codes
 
-`keycloak-config-cli` runs once after Keycloak is healthy. It fetches the local
-admin dotenv payload from `GilmanLab/secrets` through the existing
-broker-backed `labctl` path, imports the realm, and writes
-`/var/lib/keycloak/config/lab-realm-imported` on success so it does not rerun on
-reboot. Scheduled reconciliation, service clients, and GitHub OIDC are not part
-of this slice.
+`keycloak-config-cli` runs after Keycloak is healthy when the rendered realm
+configuration hash differs from the stored
+`/var/lib/keycloak/config/lab-realm.sha256` value. The config service fetches
+the local admin dotenv payload from `GilmanLab/secrets` through the existing
+broker-backed `labctl` path, imports the realm, and writes the new hash only
+after a successful import. Scheduled reconciliation and GitHub OIDC are not
+part of this slice.
+
+The intended Incus-side OIDC values are:
+
+- `oidc.issuer = https://id.glab.lol/realms/lab`
+- `oidc.client.id = incus`
+- `oidc.scopes = openid,email,profile`
+- `oidc.claim = preferred_username` after token validation confirms the claim
+  is present in Incus' access token
 
 ## Backups
 
