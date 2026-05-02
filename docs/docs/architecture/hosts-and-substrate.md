@@ -17,24 +17,33 @@ Linux host management layer.
 ### VyOS Router
 
 The `VP6630` runs VyOS and remains the lab network appliance. It owns routing,
-DHCP, DNS entrypoints, PXE coordination, bootstrap support, the real platform
+DHCP, DNS entrypoints, PXE reachability when needed, the real platform
 Kubernetes API TCP frontend, and BGP peering with Cilium.
 
-VyOS is intentionally part of the bootstrap path. The lab already depends on it
-for network reachability, so using it for API fronting and temporary bootstrap
-coordination keeps the early system small.
+VyOS is intentionally part of the network bootstrap path. The lab already
+depends on it for network reachability, but it no longer hosts the active
+temporary Kubernetes bootstrap cluster.
 
-In the current implementation split, VyOS consumes the released
-`ghcr.io/gilmanlab/platform/bootstrap-k0s:<version>` image through `infra` and
-also serves the IncusOS operation image on `LAB_PROV` during host bootstrap.
+### N5 Pro NAS
+
+The MINISFORUM N5 Pro runs IncusOS as the first permanent host and the genesis
+Incus cluster member.
+
+It replaces the Synology as the NAS and in-lab storage boundary. The `128GB`
+NVMe device is reserved for IncusOS. The two `1TB` WD_Black SN7100 NVMe
+devices form the initial mirrored ZFS data pool for Incus and NAS duties.
+
+During bootstrap, Incus on the N5 Pro hosts a disposable single-node Talos
+cluster. That cluster exists to run the bootstrap controllers before ownership
+moves into the real platform cluster.
 
 ### UM760
 
-The `UM760` runs IncusOS as the first permanent host and the first Incus
-cluster member.
+The `UM760` remains available as later IncusOS capacity.
 
-During bootstrap it hosts the first platform Talos VM. After the `MS-02` hosts
-join, it remains useful as bootstrap, recovery, and light-duty capacity.
+It is no longer the genesis host. Any future `UM760` role should be proven
+after the N5 Pro path works, rather than carried forward from the abandoned
+UM760-first bootstrap design.
 
 ### MS-02 Ultra Hosts
 
@@ -46,18 +55,18 @@ this tier.
 
 ## Incus Cluster
 
-The final Incus cluster spans:
+The intended Incus cluster starts with the N5 Pro and later expands to:
 
-- `um760`
 - `ms02-1`
 - `ms02-2`
 - `ms02-3`
+- `um760`, if it remains useful after the NAS-first path is proven
 
 The cluster is intentionally heterogeneous. Incus cluster groups should be used
-only as lightweight placement and CPU-boundary labels, for example `amd-um760`
-and `intel-ms02`. Kubernetes remains the main workload scheduler.
+only as lightweight placement and CPU-boundary labels, for example `amd-nas`,
+`amd-um760`, and `intel-ms02`. Kubernetes remains the main workload scheduler.
 
-The `UM760` is not a disposable bootstrap host. It is the first durable Incus
+The N5 Pro is not a disposable bootstrap host. It is the first durable Incus
 cluster member.
 
 ## VM Substrate
@@ -76,6 +85,9 @@ non-Talos VM that holds unique state must bring its own backup story.
 
 Use local ZFS-backed Incus storage on each IncusOS host in v1.
 
+The N5 Pro starts with a mirrored ZFS pool over the two `1TB` NVMe drives. The
+small `128GB` NVMe device is for the OS only.
+
 An Incus cluster is a management cluster, not automatically a replicated
 storage system. For most Incus storage drivers, volumes remain on the member
 where they are created. That is acceptable for Talos VM disks because the
@@ -86,10 +98,11 @@ Do not introduce shared VM storage in v1:
 - no Ceph
 - no LINSTOR
 - no Incus OVN/storage architecture just for VM mobility
-- no NAS-backed default VM disks
+- no remote NAS-backed default VM disks for every host
 
-The NAS remains a durable backup and artifact boundary, not the default block
-storage path for every VM.
+The N5 Pro NAS is the durable backup and artifact boundary. Its local Incus
+pool may host local VMs, but it is not a remote block-storage platform for
+every VM in the lab.
 
 ## Network Attachment
 
@@ -107,10 +120,11 @@ allowing the underlay to remain visible to VyOS.
 
 Before treating the host substrate as implementation reference material, prove:
 
-- the selected IncusOS image mode is a correct final-disk artifact for the
-  single-disk `UM760`
-- first-node and joining-node IncusOS seeds apply the right default Incus
-  settings
+- IncusOS installs cleanly on the N5 Pro with the OS/data disk split described
+  above
+- the first-node Incus seed applies the right default Incus settings
+- the mirrored NVMe ZFS pool is exposed to Incus the way the bootstrap VM path
+  expects
 - joining nodes do not create local networks or storage pools that block cluster
   join
 - CAPN can place Talos VMs against the intended Incus profiles and storage pools

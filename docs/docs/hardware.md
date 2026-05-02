@@ -1,19 +1,21 @@
 ---
 title: Hardware Reference
-description: Physical inventory and identifiers carried forward from the old lab.
+description: Physical inventory, identifiers, and current hardware role notes.
 ---
 
 # Hardware Reference
 
-This document is a rough inventory of physical lab equipment referenced in the
-old lab repository.
+This document is a rough inventory of physical lab equipment referenced by the
+lab.
 
 It is intentionally descriptive rather than prescriptive:
 
-- It captures what hardware appears to exist in the old repo.
-- It records identifiers, model references, concrete specs, and network details where they were explicitly documented.
-- It does not imply current or future architecture.
-- The only operational detail retained here is that the `VP6630` is the lab router running VyOS.
+- It captures hardware carried forward from the old repo plus confirmed newer
+  replacements.
+- It records identifiers, model references, concrete specs, and network details
+  where they were explicitly documented.
+- Current architecture roles are recorded only where explicitly decided,
+  currently the `VP6630` router role and the N5 Pro NAS genesis role.
 
 ## Inventory
 
@@ -81,22 +83,29 @@ It is intentionally descriptive rather than prescriptive:
     - `ms02-node2` / `ms02-2` -> `10.10.10.12`
     - `ms02-node3` / `ms02-3` -> `10.10.10.13`
 
-### Synology DiskStation DS923+
+### MINISFORUM N5 Pro NAS
 
 - Quantity: `1`
-- Repo identifiers: `Synology NAS`, `NAS`, `nas.lab.local`
-- Hardware details referenced in repo:
-  - `DiskStation DS923+`
-  - One ADR references `32GB RAM` shared with DSM
-  - User-confirmed `10GbE` PCIe add-in NIC installed
+- Repo identifiers: `NAS`, `N5 Pro`, `nas.lab.local`
+- Current role:
+  - Replaces the Synology NAS.
+  - Runs IncusOS as the genesis Incus cluster node.
+  - Hosts the disposable single-node Talos bootstrap cluster inside Incus.
+- Hardware details:
+  - MINISFORUM N5 Pro 5-bay desktop AI NAS
+  - AMD Ryzen AI 9 HX PRO 370, `12c/24t`
+  - Crucial `32GB` DDR5 SODIMM kit, `2x16GB`
+  - `128GB` NVMe SSD reserved for the OS
+  - `2x WD_Black SN7100 1TB` NVMe SSDs in the remaining NVMe slots
+  - Planned mirrored ZFS data pool across the two `1TB` NVMe drives
+  - `1x10GbE` and `1x5GbE` onboard networking
+  - `2xUSB4`, HDMI, and OCuLink available but not currently architecture
+    drivers
 - Network details found in repo:
   - No fixed IP found
   - Example hostname reference: `nas.lab.local`
-  - NFS paths referenced in repo:
-    - `/volume1/images`
-    - `/volume1/backups`
-    - `/volume1/media`
-    - `/volume1/iso`
+- Current network note:
+  - Connected to the 10GbE switch on the last port over copper.
 
 ### MikroTik CCR2004
 
@@ -148,7 +157,7 @@ The old repo contains a few places where terminology or specs drifted over time.
 
 - `MS-02` is confirmed by AMT screenshots as `MS-02-Ultra`.
 - The switch model is `CRS309-1G-8S+IN`; previous `CRS310-8G+2S+IN` references were incorrect.
-- The `DS923+` uses an installed `10GbE` PCIe NIC rather than native `10GbE`.
+- The N5 Pro replaces the Synology as the NAS and storage boundary.
 
 ## Primary Sources In The Old Repo
 

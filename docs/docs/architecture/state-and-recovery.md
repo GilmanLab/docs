@@ -25,8 +25,8 @@ The lab accumulates state in these tiers:
 - RouterOS configuration history, covered by
   [Network Device Backups](../network-device-backups.md).
 
-The NAS is the main in-lab durable backup and artifact boundary for state that
-must survive host rebuilds.
+The N5 Pro NAS is the main in-lab durable backup and artifact boundary for
+state that must survive host rebuilds.
 
 ## IncusOS Hosts
 
@@ -63,16 +63,17 @@ If a non-Talos VM holds unique state, use an explicit VM-level backup path such
 as Incus snapshots, Incus exports, or copying to another backup Incus server.
 Do not build a VM backup platform before a real non-Talos VM requirement exists.
 
-## Router Boundary Data
+## Boundary Data
 
-VyOS-hosted services that are bootstrap dependencies must have direct backup
-paths because the platform cluster may be unavailable during recovery.
+Boundary services that are bootstrap dependencies must have direct backup paths
+because the platform cluster may be unavailable during recovery.
 
 Examples include:
 
 - local DNS zonefile state
 - Tailscale machine identity where applicable
-- temporary bootstrap artifacts during an active bootstrap
+- temporary bootstrap artifacts on the NAS, router, or operator machine during
+  an active bootstrap
 
 RouterOS device configuration history is operational evidence and reviewable
 change history. It is intentionally handled by the network-device backup flow
