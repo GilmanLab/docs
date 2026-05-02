@@ -36,17 +36,21 @@ Runbook-style pages remain separate:
 
 The lab shape is:
 
-- The `UM760` and all three `MS-02 Ultra` systems run IncusOS directly on bare
-  metal.
-- Those four hosts form one Incus cluster.
+- The MINISFORUM N5 Pro NAS runs IncusOS directly on bare metal and is the
+  genesis Incus cluster member.
+- The `UM760` and all three `MS-02 Ultra` systems remain later IncusOS capacity
+  unless a future prototype removes or repurposes one of them.
 - Talos Linux runs as Incus VMs and provides the Kubernetes nodes.
-- The first platform Talos VM starts on the `UM760`; the final platform cluster
-  expands to three dual-role Talos nodes once the `MS-02` hosts join.
+- A disposable single-node Talos cluster runs inside Incus on the N5 Pro to
+  host the bootstrap controllers.
+- The first platform Talos VM is expected to start on the N5 Pro; the final
+  platform cluster expands to three dual-role Talos nodes once the `MS-02`
+  hosts join.
 - Cluster API Provider Incus, the Talos CAPI providers, and GitOps own normal
   Kubernetes cluster lifecycle.
-- VyOS remains the lab network boundary and provides DHCP, DNS, PXE support,
-  the real platform Kubernetes API TCP frontend, and BGP peering for Kubernetes
-  service VIPs.
+- VyOS remains the lab network boundary and provides DHCP, DNS, PXE support
+  when needed, the real platform Kubernetes API TCP frontend, and BGP peering
+  for Kubernetes service VIPs.
 - Cilium provides the Kubernetes datapath, LoadBalancer IP allocation, and BGP
   advertisements for service VIPs.
 - AWS anchors bootstrap identity, SOPS/KMS access, selected DNS material, and
@@ -61,11 +65,10 @@ This is the desired architecture, not a claim that every piece is already live.
 
 The following items are deliberately still prototype-validation work:
 
-- IncusOS `Operation` image generation and seeding for a final disk image.
-- Writing the chosen IncusOS image through Tinkerbell `image2disk` or
-  `oci2disk`.
-- Running the released `bootstrap-k0s` image on VyOS with the required
-  privileges, mounts, and host-network behavior.
+- IncusOS installation and seeding on the N5 Pro with the `128GB` OS SSD and
+  mirrored `1TB` NVMe data pool.
+- Running a disposable single-node Talos bootstrap cluster as an Incus VM on
+  the N5 Pro.
 - CAPN plus the Talos providers creating the desired Talos VM shape.
 - Exact VLANs, static addresses, ASNs, DNS records, and service VIP pools.
 
@@ -81,3 +84,4 @@ The v1 architecture does not include:
 - Proxmox Backup Server as the default VM backup system.
 - Shared Incus VM storage, Ceph, LINSTOR, or Incus OVN in v1.
 - A manual USB path as the preferred host bootstrap workflow.
+- A VyOS-hosted `k0s` cluster as the active bootstrap strategy.

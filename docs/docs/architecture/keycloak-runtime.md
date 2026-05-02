@@ -133,8 +133,8 @@ is already the durable store for it.
 
 Backups are written nightly to an S3 bucket in the `lab` account. The bucket
 uses SSE-KMS and object lock or versioning so corruptions cannot silently
-overwrite known-good backups. The Synology NAS pulls a secondary copy on its
-own schedule.
+overwrite known-good backups. The N5 Pro NAS pulls a secondary copy on its own
+schedule.
 
 Retention contract:
 
